@@ -8,7 +8,7 @@ from .logging_config import get_logger
 logger = get_logger("validators")
 
 VALID_SIDES = {"BUY", "SELL"}
-VALID_ORDER_TYPES = {"MARKET", "LIMIT"}
+VALID_ORDER_TYPES = {"MARKET", "LIMIT", "STOP_MARKET", "STOP_LIMIT"}
 SYMBOL_PATTERN = re.compile(r"^[A-Z0-9]{5,20}$")
 
 
@@ -72,7 +72,7 @@ def validate_order_type(order_type: str) -> str:
         Validated uppercase order type.
 
     Raises:
-        ValidationError: If order type is not MARKET or LIMIT.
+        ValidationError: If order type is not supported.
     """
     order_type = order_type.upper().strip()
     if order_type not in VALID_ORDER_TYPES:
@@ -105,6 +105,29 @@ def validate_quantity(quantity: float) -> float:
     return quantity
 
 
+def validate_stop_price(stop_price: Optional[float]) -> Optional[float]:
+    """
+    Validate stop price (required for STOP orders).
+
+    Args:
+        stop_price: Stop price to validate.
+
+    Returns:
+        Validated stop price or None.
+
+    Raises:
+        ValidationError: If stop price is not positive.
+    """
+    if stop_price is None:
+        return None
+    if stop_price <= 0:
+        raise ValidationError(
+            f"Invalid stop price: {stop_price}. Must be a positive number."
+        )
+    logger.debug("Stop price validated: %s", stop_price)
+    return stop_price
+
+
 def validate_price(price: Optional[float]) -> Optional[float]:
     """
     Validate order price (required for LIMIT orders).
@@ -134,6 +157,7 @@ def validate_order_input(
     order_type: str,
     quantity: float,
     price: Optional[float] = None,
+    stop_price: Optional[float] = None,
 ) -> dict:
     """
     Validate all order inputs and return validated values.
@@ -141,9 +165,10 @@ def validate_order_input(
     Args:
         symbol: Trading pair symbol.
         side: Order side (BUY/SELL).
-        order_type: Order type (MARKET/LIMIT).
+        order_type: Order type (MARKET/LIMIT/STOP_MARKET/STOP_LIMIT).
         quantity: Order quantity.
         price: Limit price (required for LIMIT orders).
+        stop_price: Stop price (required for STOP orders).
 
     Returns:
         Dictionary with validated inputs.
@@ -152,12 +177,13 @@ def validate_order_input(
         ValidationError: If any validation fails.
     """
     logger.info(
-        "Validating order input: symbol=%s, side=%s, type=%s, qty=%s, price=%s",
+        "Validating order input: symbol=%s, side=%s, type=%s, qty=%s, price=%s, stop_price=%s",
         symbol,
         side,
         order_type,
         quantity,
         price,
+        stop_price,
     )
 
     validated_symbol = validate_symbol(symbol)
@@ -165,9 +191,16 @@ def validate_order_input(
     validated_type = validate_order_type(order_type)
     validated_quantity = validate_quantity(quantity)
     validated_price = validate_price(price)
+    validated_stop_price = validate_stop_price(stop_price)
 
     if validated_type == "LIMIT" and validated_price is None:
         raise ValidationError("Price is required for LIMIT orders.")
+
+    if validated_type == "STOP_LIMIT" and validated_price is None:
+        raise ValidationError("Price is required for STOP_LIMIT orders.")
+
+    if validated_type in ("STOP_MARKET", "STOP_LIMIT") and validated_stop_price is None:
+        raise ValidationError("Stop price is required for STOP orders.")
 
     result = {
         "symbol": validated_symbol,
@@ -175,6 +208,7 @@ def validate_order_input(
         "order_type": validated_type,
         "quantity": validated_quantity,
         "price": validated_price,
+        "stop_price": validated_stop_price,
     }
 
     logger.info("All inputs validated successfully")

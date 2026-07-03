@@ -61,7 +61,8 @@ class BinanceTestnetClient:
         logger.info("Binance Futures Testnet client initialized")
 
     def _generate_demo_response(
-        self, symbol: str, side: str, order_type: str, quantity: float, price: Optional[float] = None
+        self, symbol: str, side: str, order_type: str, quantity: float,
+        price: Optional[float] = None, stop_price: Optional[float] = None,
     ) -> dict:
         """Generate a simulated order response for demo mode."""
         base_prices = {"BTCUSDT": 50000, "ETHUSDT": 3000, "BNBUSDT": 400}
@@ -77,6 +78,7 @@ class BinanceTestnetClient:
             "executedQty": str(quantity) if order_type == "MARKET" else "0",
             "avgPrice": f"{avg_price:.2f}" if order_type == "MARKET" else "0",
             "cumulativeQuoteQty": f"{quantity * avg_price:.2f}" if order_type == "MARKET" else "0",
+            "stopPrice": str(stop_price) if stop_price else "0",
             "updateTime": int(time.time() * 1000),
         }
 
@@ -167,6 +169,105 @@ class BinanceTestnetClient:
             raise
         except Exception as e:
             logger.error("Unexpected error placing limit order: %s", e)
+            raise
+
+    def place_stop_market_order(
+        self, symbol: str, side: str, quantity: float, stop_price: float
+    ) -> dict:
+        """
+        Place a stop-market order on Binance Futures Testnet.
+
+        Args:
+            symbol: Trading pair symbol (e.g., BTCUSDT).
+            side: Order side (BUY or SELL).
+            quantity: Order quantity.
+            stop_price: Trigger price.
+
+        Returns:
+            Order response dictionary.
+        """
+        logger.info(
+            "Placing STOP_MARKET order: symbol=%s, side=%s, quantity=%s, stop_price=%s",
+            symbol,
+            side,
+            quantity,
+            stop_price,
+        )
+
+        if self.demo:
+            response = self._generate_demo_response(
+                symbol, side, "STOP_MARKET", quantity, stop_price=stop_price
+            )
+            logger.debug("Demo stop-market order response: %s", response)
+            return response
+
+        try:
+            order = self.client.futures_create_order(
+                symbol=symbol,
+                side=side,
+                type="STOP_MARKET",
+                quantity=quantity,
+                stopPrice=stop_price,
+            )
+            logger.debug("Stop-market order response: %s", order)
+            return order
+        except BinanceAPIException as e:
+            logger.error("Binance API error placing stop-market order: %s", e)
+            raise
+        except Exception as e:
+            logger.error("Unexpected error placing stop-market order: %s", e)
+            raise
+
+    def place_stop_limit_order(
+        self, symbol: str, side: str, quantity: float, price: float, stop_price: float
+    ) -> dict:
+        """
+        Place a stop-limit order on Binance Futures Testnet.
+
+        Args:
+            symbol: Trading pair symbol (e.g., BTCUSDT).
+            side: Order side (BUY or SELL).
+            quantity: Order quantity.
+            price: Limit price after trigger.
+            stop_price: Trigger price.
+
+        Returns:
+            Order response dictionary.
+        """
+        logger.info(
+            "Placing STOP_LIMIT order: symbol=%s, side=%s, quantity=%s, price=%s, stop_price=%s",
+            symbol,
+            side,
+            quantity,
+            price,
+            stop_price,
+        )
+
+        if self.demo:
+            response = self._generate_demo_response(
+                symbol, side, "STOP_LIMIT", quantity, price, stop_price
+            )
+            response["price"] = str(price)
+            logger.debug("Demo stop-limit order response: %s", response)
+            return response
+
+        try:
+            order = self.client.futures_create_order(
+                symbol=symbol,
+                side=side,
+                type="STOP_LIMIT",
+                timeInForce="GTC",
+                quantity=quantity,
+                price=price,
+                stopPrice=stop_price,
+            )
+            logger.debug("Stop-limit order response: %s", order)
+            return order
+        except BinanceAPIException as e:
+            logger.error("Binance API error placing stop-limit order: %s", e)
+            raise
+        except Exception as e:
+            logger.error("Unexpected error placing stop-limit order: %s", e)
             raise
 
     def test_connection(self) -> bool:

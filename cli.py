@@ -40,8 +40,8 @@ def cli() -> None:
     "--order-type",
     "-t",
     required=True,
-    type=click.Choice(["MARKET", "LIMIT"], case_sensitive=False),
-    help="Order type: MARKET or LIMIT",
+    type=click.Choice(["MARKET", "LIMIT", "STOP_MARKET", "STOP_LIMIT"], case_sensitive=False),
+    help="Order type: MARKET, LIMIT, STOP_MARKET, or STOP_LIMIT",
 )
 @click.option(
     "--quantity",
@@ -55,7 +55,13 @@ def cli() -> None:
     "-p",
     type=float,
     default=None,
-    help="Limit price (required for LIMIT orders)",
+    help="Limit price (required for LIMIT and STOP_LIMIT orders)",
+)
+@click.option(
+    "--stop-price",
+    type=float,
+    default=None,
+    help="Stop/trigger price (required for STOP_MARKET and STOP_LIMIT orders)",
 )
 @click.option(
     "--demo",
@@ -70,6 +76,7 @@ def place_order(
     order_type: str,
     quantity: float,
     price: float | None,
+    stop_price: float | None,
     demo: bool,
 ) -> None:
     """Place an order on Binance Futures Testnet."""
@@ -82,6 +89,7 @@ def place_order(
             order_type=order_type,
             quantity=quantity,
             price=price,
+            stop_price=stop_price,
         )
     except ValidationError as e:
         sys.exit(1)
