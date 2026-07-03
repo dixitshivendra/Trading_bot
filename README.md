@@ -4,8 +4,9 @@ A simplified Python trading bot for placing orders on Binance Futures Testnet (U
 
 ## Features
 
-- Place MARKET and LIMIT orders
+- Place MARKET, LIMIT, STOP_MARKET, and STOP_LIMIT orders
 - Support for BUY and SELL sides
+- Demo mode for testing without API credentials
 - Input validation with clear error messages
 - Structured logging to file and console
 - Clean CLI interface with Click
@@ -49,6 +50,16 @@ BINANCE_API_SECRET=your_api_secret_here
 
 ## Usage
 
+### Demo Mode (No API Key Required)
+
+Test the bot without Binance credentials:
+
+```bash
+python cli.py test-connection --demo
+
+python cli.py place-order -s BTCUSDT -S BUY -t MARKET -q 0.001 --demo
+```
+
 ### Test Connection
 
 ```bash
@@ -67,12 +78,39 @@ python cli.py place-order --symbol BTCUSDT --side BUY --order-type MARKET --quan
 python cli.py place-order --symbol BTCUSDT --side SELL --order-type LIMIT --quantity 0.001 --price 50000
 ```
 
+### Place a Stop-Market Order
+
+Triggers a market order when price reaches stop level:
+
+```bash
+python cli.py place-order -s BTCUSDT -S BUY -t STOP_MARKET -q 0.001 --stop-price 48000
+```
+
+### Place a Stop-Limit Order
+
+Triggers a limit order when price reaches stop level:
+
+```bash
+python cli.py place-order -s BTCUSDT -S SELL -t STOP_LIMIT -q 0.001 -p 55000 --stop-price 54000
+```
+
 ### Using Short Options
 
 ```bash
 python cli.py place-order -s BTCUSDT -S BUY -t MARKET -q 0.001
 python cli.py place-order -s BTCUSDT -S SELL -t LIMIT -q 0.001 -p 50000
+python cli.py place-order -s BTCUSDT -S BUY -t STOP_MARKET -q 0.001 --stop-price 48000
+python cli.py place-order -s BTCUSDT -S SELL -t STOP_LIMIT -q 0.001 -p 55000 --stop-price 54000
 ```
+
+## Order Types
+
+| Type | Description | Required Params |
+|------|-------------|-----------------|
+| MARKET | Executes immediately at current price | symbol, side, quantity |
+| LIMIT | Executes at specified price or better | symbol, side, quantity, price |
+| STOP_MARKET | Triggers MARKET order at stop price | symbol, side, quantity, stop-price |
+| STOP_LIMIT | Triggers LIMIT order at stop price | symbol, side, quantity, price, stop-price |
 
 ## Project Structure
 
@@ -102,4 +140,3 @@ trading_bot/
 - **NetworkError**: Connection issues
 
 ## License
-
